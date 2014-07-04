@@ -119,8 +119,6 @@ def getSimplePatchRequest(bugid):
             request["component"] = bug.component
 
             # Do some validation
-            if bug.creator != comment["author"]:
-                raise Exception("User mismatch between bug creator and request submitter")
             for branch in request["branches"]:
                 if branch not in request["patches"]:
                     raise Exception("Missing Patch for branch %s" % branch)
