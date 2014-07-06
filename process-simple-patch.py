@@ -1,27 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-#    This program is free software; you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
+# process-simple-patch.py
 #
-#    You should have received a copy of the GNU General Public License along
-#    with this program; if not, write to the Free Software Foundation, Inc.,
-#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-#    process-simple-patch.py
+# This script automates most of the tasks for processing Simple Patch Requests
+#   See the Simple Patch Policy at
+#       https://fedoraproject.org/wiki/Policy_for_simple_patches#Simple_Patch_Policy
+# Copyright (C) 2014 Sandro Mani
 #
-#    This script automates most of the tasks for processing Simple Patch Requests
-#    See the Simple Patch Policy at
-#      https://fedoraproject.org/wiki/Policy_for_simple_patches#Simple_Patch_Policy
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
 #
-#    Author: Sandro Mani <manisandro@gmail.com>
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from bugzilla.rhbugzilla import RHBugzilla3
 from fedora.client import AccountSystem
