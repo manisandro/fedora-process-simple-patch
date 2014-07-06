@@ -251,6 +251,8 @@ def downloadAndValidateData(request):
 
         print " => Branch %s is OK!\n" % branch
 
+        return tmpdir
+
 
 def pushAndBuild(request):
     taskPat = re.compile(r"^Task info: (http://koji.fedoraproject.org/koji/taskinfo\?taskID=\d+)$", re.M)
@@ -286,7 +288,7 @@ def main(argv):
     validateFedoraUser(request)
 
     print "Downloading data..."
-    downloadAndValidateData(request)
+    tmpdir = downloadAndValidateData(request)
 
     print "\n All checks passed. Make sure you've reviewed the patches."
     print ""
@@ -298,8 +300,8 @@ def main(argv):
     print "Building packages...",
     pushAndBuild(request)
 
+    shutil.rmtree(tmpdir)
     os.chdir("/")
-    shutil.rmtree(os.getcwd())
     print "All done!"
 
 
