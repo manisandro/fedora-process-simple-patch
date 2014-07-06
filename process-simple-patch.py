@@ -285,10 +285,17 @@ def pushAndBuild(request, bugzilla):
         ShellCmd(['git', 'push']).communicate("Failed to push %s" % id)
 
         print " * Adding comment to bugzilla..."
-        log = ShellCmd(['git', 'log', '-1', '--format="commit %H%n%n%B"'])
-        out = log.stdout().read()
-        log.communicate()
-        bugzilla.comment("Pushed to branch '{}'.\n{}".format(branch, out))
+        commit = ShellCmd(['git', 'log', '-1', '--format="%n%B"'])
+        commit_sha = ShellCmd(['git', 'log', '-1', '--format="%H"'])
+        out_commit = commit.stdout().read()
+        out_commit_sha = commit_sha.stdout().read()
+        commit.communicate()
+        commit_sha.communicate()
+        if branch == "master":
+            scm_link = "http://pkgs.fedoraproject.org/cgit/{}.git/commit/?id={}".format(request["component"], out_commit_sha)
+        else:
+            scm_link = "http://pkgs.fedoraproject.org/cgit/{}.git/commit/?h={}&id={}".format(request["component"], branch, out_commit_sha)
+        bugzilla.comment("Pushed to branch '{}' as {}.\n{}".format(branch, scm_link, out_commit))
 
         print " * Launching build for %s..." % id
         fedpkg = ShellCmd(['fedpkg', 'build', '--nowait'])
