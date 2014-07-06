@@ -14,3 +14,7 @@ Requirements
 Authors
 -------
 [AUTHORS](AUTHORS)
+
+License
+-------
+[[http://spdx.org/licenses/GPL-2.0+]](GPL-2.0+). [LICENSE](LICENSE)
