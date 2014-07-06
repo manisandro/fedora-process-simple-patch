@@ -11,4 +11,6 @@ Requirements
 * python-bugzilla
 * python-fedora
 
-Author: Sandro Mani <manisandro@gmail.com>
+Authors
+-------
+[AUTHORS](AUTHORS)
