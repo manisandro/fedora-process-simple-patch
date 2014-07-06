@@ -35,6 +35,7 @@ import shutil
 import urllib
 import glob
 import hashlib
+import argparse
 
 
 def patsearch(pat, text, errormsg):
@@ -69,11 +70,13 @@ class ShellCmd:
 
 
 class Bugzilla:
-    def __init__(self, bugid, username=None):
+    def __init__(self, args):
         self.bzclient = RHBugzilla3(url="https://bugzilla.redhat.com/xmlrpc.cgi")
-        self.bugid = bugid
+        self.bugid = args.bugid
         # Do bugzilla login (so that the email of the reporter/request author is visible)
-        if not username:
+        if args.user:
+            self.username = args.user
+        else:
             self.username = raw_input(' * RHBZ username: ')
         self.password = getpass.getpass(' * RHBZ password: ')
 
@@ -289,8 +292,8 @@ def pushAndBuild(request, bugzilla):
         commit_sha = ShellCmd(['git', 'log', '-1', '--format="%H"'])
         out_commit = commit.stdout().read()
         out_commit_sha = commit_sha.stdout().read()
-        commit.communicate()
-        commit_sha.communicate()
+        commit.communicate("")
+        commit_sha.communicate("")
         if branch == "master":
             scm_link = "http://pkgs.fedoraproject.org/cgit/{}.git/commit/?id={}".format(request["component"], out_commit_sha)
         else:
@@ -309,15 +312,32 @@ def pushAndBuild(request, bugzilla):
     bugzilla.set_status("MODIFIED")
 
 
+class Parser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write("Error: {}\n".format(message))
+        self.print_help()
+        sys.exit(2)
+
+
+def set_args(parser):
+    parser.add_argument("bugid", action="store",
+                        help="Bug number")
+    parser.add_argument("--username", dest="user", action="store",
+                        help="Username for RHBZ")
+
+
 def main(argv):
-    if len(argv) < 2:
-        print >> sys.stderr, "Usage: %s <bug>" % argv[0]
-        sys.exit(1)
+    descr = """
+This script automates most of the tasks for processing Simple Patch Requests
+See the Simple Patch Policy at https://fedoraproject.org/wiki/Policy_for_simple_patches#Simple_Patch_Policy
+"""
+    parser = Parser(description=descr)
+    set_args(parser)
+    args = parser.parse_args()
+    print "WARNING: Verifying scratch builds has been disabled"
+    bugzilla = Bugzilla(args)
 
-    bugid = argv[1]
-    bugzilla = Bugzilla(bugid)
-
-    print "Fetching request from bug %s..." % bugid
+    print "Fetching request from bug %s..." % args.bugid
     request = getSimplePatchRequest(bugzilla)
 
     print "Validating user %s..." % request["fasid"]
@@ -334,7 +354,7 @@ def main(argv):
         raise Exception("Aborted by user")
 
     print "Building packages...",
-    pushAndBuild(request)
+    pushAndBuild(request, bugzilla)
 
     shutil.rmtree(tmpdir)
     os.chdir("/")
