@@ -79,6 +79,7 @@ class Bugzilla:
         else:
             self.username = raw_input(' * RHBZ username: ')
         self.password = getpass.getpass(' * RHBZ password: ')
+        self.login()
 
     def login(self):
         try:
@@ -90,24 +91,20 @@ class Bugzilla:
         self.bzclient.logout()
 
     def fetch_bug(self):
-        self.login()
         try:
             bug = self.bzclient.getbug(self.bugid)
         except:
             self.logout()
             raise Exception("Failed to fetch bug {}".format(self.bugid))
-        self.logout()
         return bug
 
     def comment(self, comment):
-        self.login()
-        self.fetch_bug.addcomment(comment)
-        self.logout()
+        bug = self.fetch_bug()
+        bug.addcomment(comment)
 
     def set_status(self, status):
-        self.login()
-        self.bzclient.getbug().setstatus(status)
-        self.logout()
+        bug = self.fetch_bug()
+        bug.setstatus(status)
 
 
 def getSimplePatchRequest(bugzilla):
@@ -288,17 +285,19 @@ def pushAndBuild(request, bugzilla):
         ShellCmd(['git', 'push']).communicate("Failed to push %s" % id)
 
         print " * Adding comment to bugzilla..."
-        commit = ShellCmd(['git', 'log', '-1', '--format="%n%B"'])
+        commit = ShellCmd(['git', 'log', '-1', '--format="commit %H%n%B"'])
         commit_sha = ShellCmd(['git', 'log', '-1', '--format="%H"'])
         out_commit = commit.stdout().read()
         out_commit_sha = commit_sha.stdout().read()
         commit.communicate("")
         commit_sha.communicate("")
+        out_commit = re.sub(r"\"$", "", re.sub(r"^\"", "", out_commit))
+        out_commit_sha = re.sub(r"\"$", "", re.sub(r"^\"", "", out_commit_sha))
         if branch == "master":
             scm_link = "http://pkgs.fedoraproject.org/cgit/{}.git/commit/?id={}".format(request["component"], out_commit_sha)
         else:
             scm_link = "http://pkgs.fedoraproject.org/cgit/{}.git/commit/?h={}&id={}".format(request["component"], branch, out_commit_sha)
-        bugzilla.comment("Pushed to branch '{}' as {}.\n{}".format(branch, scm_link, out_commit))
+        bugzilla.comment("Pushed to branch '{}' as {}\n{}".format(branch, scm_link, out_commit))
 
         print " * Launching build for %s..." % id
         fedpkg = ShellCmd(['fedpkg', 'build', '--nowait'])
@@ -310,6 +309,7 @@ def pushAndBuild(request, bugzilla):
             print " ! Warning: failed to retreive build url from fedpkg output"
 
     bugzilla.set_status("MODIFIED")
+    bugzilla.logout()
 
 
 class Parser(argparse.ArgumentParser):
