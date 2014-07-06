@@ -361,7 +361,6 @@ See the Simple Patch Policy at https://fedoraproject.org/wiki/Policy_for_simple_
     pushAndBuild(request, bugzilla)
 
     shutil.rmtree(tmpdir)
-    os.chdir("/")
     print "All done!"
 
 
