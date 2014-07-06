@@ -299,7 +299,6 @@ def main(argv):
     pushAndBuild(request)
 
     shutil.rmtree(tmpdir)
-    os.chdir("/")
     print "All done!"
 
 
