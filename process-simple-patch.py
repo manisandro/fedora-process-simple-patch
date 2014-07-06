@@ -6,7 +6,8 @@
 # This script automates most of the tasks for processing Simple Patch Requests
 #   See the Simple Patch Policy at
 #       https://fedoraproject.org/wiki/Policy_for_simple_patches#Simple_Patch_Policy
-# Copyright (C) 2014 Sandro Mani
+#
+# Copyright (C) 2014 Sandro Mani, Igor Gnatenko
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -17,10 +18,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 
 from bugzilla.rhbugzilla import RHBugzilla3
 from fedora.client import AccountSystem
