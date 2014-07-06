@@ -353,7 +353,7 @@ See the Simple Patch Policy at https://fedoraproject.org/wiki/Policy_for_simple_
     if build.lower() != "y":
         raise Exception("Aborted by user")
 
-    print "Building packages...",
+    print "Building packages...\n",
     pushAndBuild(request, bugzilla)
 
     shutil.rmtree(tmpdir)
