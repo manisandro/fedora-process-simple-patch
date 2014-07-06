@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -157,7 +157,6 @@ def validateFedoraUser(request):
 
     if "cla_fpca" not in person["group_roles"] or person["group_roles"]["cla_fpca"]["role_status"] != "approved":
         raise Exception("Request submitter %s has not signed the Fedora Project Contributor Agreement" % fasid)
-    isPackager = False
 
     if "packager" not in person["group_roles"] or person["group_roles"]["packager"]["role_status"] != "approved":
         if request["branches"].difference(set(["master"])):
@@ -178,7 +177,7 @@ def downloadAndValidateData(request):
     # Clone repo
     print " * Cloning from dist-git..."
     package = request["component"]
-    out = ShellCmd(['fedpkg', 'clone', package]).communicate("Failed to checkout %s from dist-git" % package)
+    ShellCmd(['fedpkg', 'clone', package]).communicate("Failed to checkout %s from dist-git" % package)
     os.chdir(package)
 
     # Download and apply patches
