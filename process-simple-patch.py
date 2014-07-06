@@ -186,7 +186,7 @@ def validateFedoraUser(request):
     print " => User %s successfully validated" % fasid
 
 
-def downloadAndValidateData(request):
+def downloadAndValidateData(request, verify_scratch=True):
     taskPat = re.compile(r"^http://koji.fedoraproject.org/koji/taskinfo\?taskID=(\d+)$")
 
     # Create temporary folder
@@ -219,51 +219,54 @@ def downloadAndValidateData(request):
         # Apply patch
         ShellCmd(['git', 'am', '--signoff'], fh).communicate("Patch %s does not apply to branch %s:" % (filename, branch))
 
-        # Get the taskID from the URL
-        try:
-            taskId = taskPat.match(request["builds"][branch]).group(1)
-        except:
-            raise Exception("Invalid scratch build URL %s" % request["builds"][branch])
+        if verify_scratch:
+            # Get the taskID from the URL
+            try:
+                taskId = taskPat.match(request["builds"][branch]).group(1)
+            except:
+                raise Exception("Invalid scratch build URL %s" % request["builds"][branch])
 
-        # Download files from koji
-        print " * Downloading scratch build %s for branch %s..." % (taskId, branch)
+            # Download files from koji
+            print " * Downloading scratch build %s for branch %s..." % (taskId, branch)
 
-        os.mkdir("build-%s" % branch)
-        os.chdir("build-%s" % branch)
-        ShellCmd(['koji-download-scratch', taskId, '--arch', 'src']).communicate("Failed to download SRPM from koji task %s" % taskId)
-        srpm = glob.glob("%s*.src.rpm" % package)
-        if not srpm:
-            raise Exception("Failed to locate SRPM downloaded from koji task %s" % taskId)
-        srpm = srpm[0]
-        rpm2cpio = ShellCmd(['rpm2cpio', srpm])
-        cpio = ShellCmd(['cpio', '-idm'], stdin=rpm2cpio.stdout())
-        cpio.communicate("Failed to extract SRPM %s" % srpm)
-        os.chdir("..")
+            os.mkdir("build-%s" % branch)
+            os.chdir("build-%s" % branch)
+            ShellCmd(['koji-download-scratch', taskId, '--arch', 'src']).communicate("Failed to download SRPM from koji task %s" % taskId)
+            srpm = glob.glob("%s*.src.rpm" % package)
+            if not srpm:
+                raise Exception("Failed to locate SRPM downloaded from koji task %s" % taskId)
+            srpm = srpm[0]
+            rpm2cpio = ShellCmd(['rpm2cpio', srpm])
+            cpio = ShellCmd(['cpio', '-idm'], stdin=rpm2cpio.stdout())
+            cpio.communicate("Failed to extract SRPM %s" % srpm)
+            os.chdir("..")
 
-        # Validate scratch build
-        print " * Validating scratch build %s for branch %s..." % (taskId, branch)
+            # Validate scratch build
+            print " * Validating scratch build %s for branch %s..." % (taskId, branch)
 
-        # Validate source files
-        try:
-            with open("sources") as fh:
-                sources = [re.split(r"\s+", line)[0:2] for line in fh.readlines()]
-        except:
-            raise Exception("Failed to parse sources file for %s/%s" % (package, branch))
+            # Validate source files
+            try:
+                with open("sources") as fh:
+                    sources = [re.split(r"\s+", line)[0:2] for line in fh.readlines()]
+            except:
+                raise Exception("Failed to parse sources file for %s/%s" % (package, branch))
 
-        for (hash, source) in sources:
-            if hash != md5sum("build-%s/%s" % (branch, source)):
-                raise Exception("md5sum mismatch source %s from patched %s/%s and scratch build SRPM" % (source, package, branch))
+            for (hash, source) in sources:
+                if hash != md5sum("build-%s/%s" % (branch, source)):
+                    raise Exception("md5sum mismatch source %s from patched %s/%s and scratch build SRPM" % (source, package, branch))
 
-        # Validate remaining files
-        gitls = ShellCmd(['git', 'ls-files'])
-        items = [x for x in gitls.stdout().read().split("\n") if x and x != ".gitignore" and x != "sources"]
-        gitls.communicate("Failed to retreive list of files in index")
-        for item in items:
-            diff = ShellCmd(['diff', '-uZB', item, "build-%s/%s" % (branch, item)])
-            text = diff.stdout().read()
-            diff.communicate("Failed to compute diff between file %s from patched %s/%s and scratch build SRPM" % (item, package, branch), lambda code: code in [0, 1])
-            if text:
-                raise Exception("Mismatch between file %s from patched %s/%s and scratch build SRPM:\n %s" % (item, package, branch, text))
+            # Validate remaining files
+            gitls = ShellCmd(['git', 'ls-files'])
+            items = [x for x in gitls.stdout().read().split("\n") if x and x != ".gitignore" and x != "sources"]
+            gitls.communicate("Failed to retreive list of files in index")
+            for item in items:
+                diff = ShellCmd(['diff', '-uZB', item, "build-%s/%s" % (branch, item)])
+                text = diff.stdout().read()
+                diff.communicate("Failed to compute diff between file %s from patched %s/%s and scratch build SRPM" % (item, package, branch), lambda code: code in [0, 1])
+                if text:
+                    raise Exception("Mismatch between file %s from patched %s/%s and scratch build SRPM:\n %s" % (item, package, branch, text))
+        else:
+            print " * WARNING: Verifying scratch builds has been disabled"
 
         # Simulate a push
         print " * Checking whether branch %s can be pushed..." % branch
@@ -324,6 +327,8 @@ def set_args(parser):
                         help="Bug number")
     parser.add_argument("--username", dest="user", action="store",
                         help="Username for RHBZ")
+    parser.add_argument("--no-verify-scratch", dest="verify_scratch", action="store_false",
+                        help="Do not verify scratch build (WARNING)")
 
 
 def main(argv):
@@ -334,7 +339,6 @@ See the Simple Patch Policy at https://fedoraproject.org/wiki/Policy_for_simple_
     parser = Parser(description=descr)
     set_args(parser)
     args = parser.parse_args()
-    print "WARNING: Verifying scratch builds has been disabled"
     bugzilla = Bugzilla(args)
 
     print "Fetching request from bug %s..." % args.bugid
@@ -344,7 +348,7 @@ See the Simple Patch Policy at https://fedoraproject.org/wiki/Policy_for_simple_
     validateFedoraUser(request)
 
     print "Downloading data..."
-    tmpdir = downloadAndValidateData(request)
+    tmpdir = downloadAndValidateData(request, args.verify_scratch)
 
     print "\n All checks passed. Make sure you've reviewed the patches."
     print ""
