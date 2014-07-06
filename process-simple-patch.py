@@ -68,25 +68,47 @@ class ShellCmd:
             raise Exception("%s:\n%s" % (errormsg, str(stderr)))
 
 
-def getSimplePatchRequest(bugid):
-    bzclient = RHBugzilla3(url='https://bugzilla.redhat.com/xmlrpc.cgi')
+class Bugzilla:
+    def __init__(self, bugid, username=None):
+        self.bzclient = RHBugzilla3(url="https://bugzilla.redhat.com/xmlrpc.cgi")
+        self.bugid = bugid
+        # Do bugzilla login (so that the email of the reporter/request author is visible)
+        if not username:
+            self.username = raw_input(' * RHBZ username: ')
+        self.password = getpass.getpass(' * RHBZ password: ')
 
-    # Do bugzilla login (so that the email of the reporter/request author is visible)
-    username = raw_input(' * RHBZ username: ')
-    password = getpass.getpass(' * RHBZ password: ')
+    def login(self):
+        try:
+            self.bzclient.login(self.username, self.password)
+        except:
+            raise Exception("Bugzilla login failed")
 
-    try:
-        bzclient.login(username, password)
-    except:
-        raise Exception("Bugzilla login failed")
+    def logout(self):
+        self.bzclient.logout()
 
-    # Fetch bug
-    try:
-        bug = bzclient.getbug(bugid)
-    except:
-        bzclient.logout()
-        raise Exception("Failed to fetch bug %s" % bugid)
-    bzclient.logout()
+    def fetch_bug(self):
+        self.login()
+        try:
+            bug = self.bzclient.getbug(self.bugid)
+        except:
+            self.logout()
+            raise Exception("Failed to fetch bug {}".format(self.bugid))
+        self.logout()
+        return bug
+
+    def comment(self, comment):
+        self.login()
+        self.fetch_bug.addcomment(comment)
+        self.logout()
+
+    def set_status(self, status):
+        self.login()
+        self.bzclient.getbug().setstatus(status)
+        self.logout()
+
+
+def getSimplePatchRequest(bugzilla):
+    bug = bugzilla.fetch_bug()
 
     # Search comments for a Simple Patch Request
     patReq = re.compile(r"^\s*Simple Patch Request\s*$", re.M)
@@ -252,7 +274,7 @@ def downloadAndValidateData(request):
         return tmpdir
 
 
-def pushAndBuild(request):
+def pushAndBuild(request, bugzilla):
     taskPat = re.compile(r"^Task info: (http://koji.fedoraproject.org/koji/taskinfo\?taskID=\d+)$", re.M)
 
     for branch in request["branches"]:
@@ -261,6 +283,12 @@ def pushAndBuild(request):
 
         print " * Pushing %s..." % id
         ShellCmd(['git', 'push']).communicate("Failed to push %s" % id)
+
+        print " * Adding comment to bugzilla..."
+        log = ShellCmd(['git', 'log', '-1', '--format="commit %H%n%n%B"'])
+        out = log.stdout().read()
+        log.communicate()
+        bugzilla.comment("Pushed to branch '{}'.\n{}".format(branch, out))
 
         print " * Launching build for %s..." % id
         fedpkg = ShellCmd(['fedpkg', 'build', '--nowait'])
@@ -271,6 +299,8 @@ def pushAndBuild(request):
         except:
             print " ! Warning: failed to retreive build url from fedpkg output"
 
+    bugzilla.set_status("MODIFIED")
+
 
 def main(argv):
     if len(argv) < 2:
@@ -278,9 +308,10 @@ def main(argv):
         sys.exit(1)
 
     bugid = argv[1]
+    bugzilla = Bugzilla(bugid)
 
     print "Fetching request from bug %s..." % bugid
-    request = getSimplePatchRequest(bugid)
+    request = getSimplePatchRequest(bugzilla)
 
     print "Validating user %s..." % request["fasid"]
     validateFedoraUser(request)
