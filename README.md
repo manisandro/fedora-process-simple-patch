@@ -17,4 +17,4 @@ Authors
 
 License
 -------
-[[http://spdx.org/licenses/GPL-2.0+]](GPL-2.0+). [LICENSE](LICENSE)
+[GPL-2.0+](http://spdx.org/licenses/GPL-2.0+). [LICENSE](LICENSE)
