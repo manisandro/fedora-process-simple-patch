@@ -105,6 +105,11 @@ class Bugzilla:
         bug.setstatus(status)
 
 
+class ValidateError(Exception):
+    def __init__(self, msg, bugzilla):
+        bugzilla.comment(msg)
+
+
 def getSimplePatchRequest(bugzilla):
     bug = bugzilla.fetch_bug()
 
@@ -184,7 +189,7 @@ def validateFedoraUser(request):
     print " => User %s successfully validated" % fasid
 
 
-def downloadAndValidateData(request, verify_scratch=True):
+def downloadAndValidateData(request, bugzilla, verify_scratch=True):
     taskPat = re.compile(r"^http://koji.fedoraproject.org/koji/taskinfo\?taskID=(\d+)$")
 
     # Create temporary folder
@@ -251,7 +256,8 @@ def downloadAndValidateData(request, verify_scratch=True):
 
             for (hash, source) in sources:
                 if hash != md5sum("build-%s/%s" % (branch, source)):
-                    raise Exception("md5sum mismatch source %s from patched %s/%s and scratch build SRPM" % (source, package, branch))
+                    raise ValidateError("md5sum mismatch source %s from patched %s/%s and scratch build SRPM" % (source, package, branch),
+                                        bugzilla)
 
             # Validate remaining files
             gitls = ShellCmd(['git', 'ls-files'])
@@ -262,7 +268,8 @@ def downloadAndValidateData(request, verify_scratch=True):
                 text = diff.stdout().read()
                 diff.communicate("Failed to compute diff between file %s from patched %s/%s and scratch build SRPM" % (item, package, branch), lambda code: code in [0, 1])
                 if text:
-                    raise Exception("Mismatch between file %s from patched %s/%s and scratch build SRPM:\n %s" % (item, package, branch, text))
+                    raise ValidateError("Mismatch between file %s from patched %s/%s and scratch build SRPM:\n %s" % (item, package, branch, text),
+                                        bugzilla)
         else:
             print " * WARNING: Verifying scratch builds has been disabled"
 
@@ -346,7 +353,7 @@ See the Simple Patch Policy at https://fedoraproject.org/wiki/Policy_for_simple_
     validateFedoraUser(request)
 
     print "Downloading data..."
-    tmpdir = downloadAndValidateData(request, args.verify_scratch)
+    tmpdir = downloadAndValidateData(request, bugzilla, args.verify_scratch)
 
     print "\n All checks passed. Make sure you've reviewed the patches."
     print ""
